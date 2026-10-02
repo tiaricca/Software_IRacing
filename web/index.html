@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d10">
+  <title>Shadow Lap Spike</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+
+  <!-- HOME -->
+  <section class="screen" id="screen-home">
+    <header class="brand"><span class="logo">TA</span><span>Track Academy</span><span class="tag">spike</span></header>
+    <div class="card">
+      <div class="eyebrow" id="home-eyebrow">iRacing · Ray FF1600</div>
+      <h1 id="home-title">Oulton Park</h1>
+      <div class="sub" id="home-sub"></div>
+      <div class="map-wrap" id="home-map"></div>
+      <div class="stats">
+        <div><strong id="best-score">—</strong><span>Miglior Shadow Lap</span></div>
+        <div><strong id="attempts">0</strong><span>Tentativi</span></div>
+      </div>
+    </div>
+    <button class="btn primary" data-go="setup">Shadow Lap</button>
+    <button class="btn" data-go="study">Studia la pista</button>
+    <p class="foot">Geometria © OpenStreetMap contributors (ODbL). Tempi e velocità sono stime da un modello semplificato, non un giro reale. Non affiliato a iRacing.</p>
+  </section>
+
+  <!-- STUDY -->
+  <section class="screen" id="screen-study" hidden>
+    <header class="bar"><button class="back" data-go="home" aria-label="Indietro">‹</button><h2>Studia la pista</h2></header>
+    <div class="map-wrap" id="study-map"></div>
+    <div class="sequence" id="study-sequence"></div>
+    <ol class="corner-list" id="corner-list"></ol>
+  </section>
+
+  <!-- SETUP -->
+  <section class="screen" id="screen-setup" hidden>
+    <header class="bar"><button class="back" data-go="home" aria-label="Indietro">‹</button><h2>Shadow Lap</h2></header>
+    <p class="lead">Tieni il telefono <b>in orizzontale con due mani</b>, schermo verso di te, come un volante. Fai il giro a mente e gira il telefono in ogni curva. Alla fine tocca <b>TRAGUARDO</b>.</p>
+    <div class="modes" role="radiogroup">
+      <label class="mode"><input type="radio" name="mode" value="rookie" checked>
+        <span><b>Rookie</b><small>Nome e direzione di ogni curva, mappa con il ghost, beep.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="driver">
+        <span><b>Driver</b><small>Solo un beep nelle frenate. La direzione la ricordi tu.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="pro">
+        <span><b>Pro</b><small>Nessun aiuto. Solo tu e la pista a memoria.</small></span></label>
+    </div>
+    <button class="btn primary" id="btn-sensors">Attiva sensori e calibra</button>
+    <p class="error" id="setup-error" hidden></p>
+    <p class="hint">Su computer: muovi il mouse a destra/sinistra oppure usa ← → (Shift per sterzare di più).</p>
+  </section>
+
+  <!-- CALIBRATION -->
+  <section class="screen landscape" id="screen-calib" hidden>
+    <button class="close" data-go="setup" aria-label="Annulla">✕</button>
+    <div class="calib-step" id="calib-text"></div>
+    <div class="meter"><div class="meter-fill"></div><div class="meter-zero"></div></div>
+    <div class="steer-readout" id="calib-readout">0°</div>
+    <p class="warn" id="calib-warn" hidden></p>
+    <button class="btn primary" id="btn-center">Imposta centro</button>
+  </section>
+
+  <!-- DRIVE -->
+  <section class="screen landscape drive" id="screen-drive" hidden>
+    <button class="close" id="btn-abort" aria-label="Annulla">✕</button>
+    <div class="countdown" id="countdown" hidden></div>
+    <div class="drive-top">
+      <div class="timer" id="timer">0:00.0</div>
+      <div class="mode-tag" id="drive-mode"></div>
+    </div>
+    <div class="drive-mid">
+      <div class="minimap" id="drive-map"></div>
+      <div class="cue" id="cue"></div>
+    </div>
+    <div class="meter"><div class="meter-fill"></div><div class="meter-zero"></div></div>
+    <button class="btn finish" id="btn-finish" disabled>TRAGUARDO</button>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="screen" id="screen-results" hidden>
+    <header class="bar"><button class="back" data-go="home" aria-label="Home">‹</button><h2>Risultato</h2></header>
+    <div class="score-hero">
+      <div class="score" id="res-score">0</div>
+      <div><div class="eyebrow">Mental Lap Score</div><div class="sub" id="res-sub"></div></div>
+    </div>
+    <div class="metrics" id="res-metrics"></div>
+    <h3>Timeline</h3>
+    <div class="timeline" id="res-timeline"></div>
+    <p class="legend"><span class="sw sw-R"></span>destra <span class="sw sw-L"></span>sinistra · sopra il riferimento, sotto il tuo giro</p>
+    <h3>Curva per curva</h3>
+    <table class="corner-table"><tbody id="res-table"></tbody></table>
+    <div class="actions">
+      <button class="btn primary" id="btn-retry">Riprova</button>
+      <button class="btn" data-go="study">Studia la pista</button>
+    </div>
+    <details class="raw">
+      <summary>Dati grezzi del tentativo</summary>
+      <button class="btn small" id="btn-copy">Copia JSON</button>
+      <pre id="res-raw"></pre>
+    </details>
+  </section>
+
+</main>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

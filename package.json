@@ -1,0 +1,1 @@
+{"type":"module","private":true,"scripts":{"build:track":"python tools/build_track.py","test":"node --test tests/*.test.mjs"}}
