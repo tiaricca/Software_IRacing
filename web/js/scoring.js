@@ -6,12 +6,27 @@
 
 const RANK = { minor: 0, small: 0, medium: 1, large: 2 };
 
-// Phone rotation bands, deliberately broad: the phone is not a real wheel.
-export function phoneIntensity(peakDeg) {
-  if (peakDeg < 20) return 'small';
-  if (peakDeg < 38) return 'medium';
+// People rotate the phone very differently (one tester used 70-90° for
+// hairpins), so intensity is relative to the user's own steering scale:
+// the 80th percentile of their peaks in this lap.
+const DEFAULT_SCALE = 50;
+
+export function steeringScale(events) {
+  if (events.length < 5) return DEFAULT_SCALE;
+  const peaks = events.map((e) => e.peakDeg).sort((a, b) => a - b);
+  return Math.max(20, peaks[Math.floor(0.8 * (peaks.length - 1))]);
+}
+
+export function phoneIntensity(peakDeg, scale = DEFAULT_SCALE) {
+  const ratio = peakDeg / scale;
+  if (ratio < 0.5) return 'small';
+  if (ratio < 0.85) return 'medium';
   return 'large';
 }
+
+// Returning to centre after a big turn often overshoots slightly to the
+// other side: drop movements that are tiny compared to the user's scale.
+const OVERSHOOT_RATIO = 0.2;
 
 const COST = {
   missedMajor: 1.0,
@@ -38,7 +53,7 @@ function fitClock(perCorner, refLapTime) {
   return { a, b };
 }
 
-export function alignLap(corners, userEvents, refLapTime, mapTime) {
+export function alignLap(corners, userEvents, refLapTime, mapTime, scale = DEFAULT_SCALE) {
   const user = userEvents.map((e) => ({ ...e, t: mapTime(e.t0) }));
   const maxDt = 0.05 * refLapTime;
   const n = corners.length;
@@ -80,7 +95,7 @@ export function alignLap(corners, userEvents, refLapTime, mapTime) {
         status: c.dir === u.dir ? 'ok' : 'wrong',
         user: u,
         dt: u.t - c.t,
-        userIntensity: phoneIntensity(u.peakDeg),
+        userIntensity: phoneIntensity(u.peakDeg, scale),
       };
       i--; j--;
     } else if (step === 2) {
@@ -96,13 +111,15 @@ export function alignLap(corners, userEvents, refLapTime, mapTime) {
   return { perCorner, extras, user };
 }
 
-export function scoreLap(ref, userEvents, userLapTime) {
+export function scoreLap(ref, rawEvents, userLapTime) {
   const lap = ref.refLapTime;
+  const steer = steeringScale(rawEvents);
+  const userEvents = rawEvents.filter((e) => e.peakDeg >= OVERSHOOT_RATIO * steer);
   const scale = userLapTime > 0 ? lap / userLapTime : 1;
-  let aligned = alignLap(ref.corners, userEvents, lap, (t) => t * scale);
+  let aligned = alignLap(ref.corners, userEvents, lap, (t) => t * scale, steer);
   const clock = fitClock(aligned.perCorner, lap);
   if (clock) {
-    const refit = alignLap(ref.corners, userEvents, lap, (t) => clock.a * t * scale + clock.b);
+    const refit = alignLap(ref.corners, userEvents, lap, (t) => clock.a * t * scale + clock.b, steer);
     const okCount = (r) => r.perCorner.filter((p) => p.status === 'ok').length;
     if (okCount(refit) >= okCount(aligned)) aligned = refit;
   }
@@ -146,5 +163,7 @@ export function scoreLap(ref, userEvents, userLapTime) {
     perCorner,
     extraEvents: extras,
     userEvents: user,
+    rawEvents,
+    steeringScale: steer,
   };
 }

@@ -108,3 +108,13 @@ test('mirrored lap scores low', () => {
   const r = scoreLap(ref, events, lapTime);
   assert.ok(r.score < 50, `score ${r.score}`);
 });
+
+test('real phone attempt (big steering angles) is scored fairly', () => {
+  const a = JSON.parse(readFileSync(new URL('./fixtures/2026-10-03-rookie-phone.json', import.meta.url)));
+  const r = scoreLap(ref, a.events, a.userLapTime);
+  assert.equal(r.missed, 0);
+  assert.equal(r.wrong, 0);
+  assert.ok(r.intensity >= 0.75, `intensity ${r.intensity}`);
+  assert.ok(r.extraEvents.every((e) => e.peakDeg > 11), 'small overshoot ignored');
+  assert.ok(r.score >= 82, `score ${r.score}`);
+});

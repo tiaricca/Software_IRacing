@@ -333,7 +333,10 @@ function beginLap(minimap) {
       }
     }
     if (elapsed > MIN_LAP_BEFORE_FINISH) $('btn-finish').disabled = false;
-    if (elapsed > ref.refLapTime * 1.8) { finishLap(); return; }
+    // Rookie and Driver follow the reference pace, so the lap ends by itself
+    // at the finish line; in Pro only the driver knows when they cross it.
+    const autoFinish = mode === 'pro' ? ref.refLapTime * 1.8 : ref.refLapTime;
+    if (elapsed >= autoFinish) { finishLap(); return; }
     drive.raf = requestAnimationFrame(frame);
   };
   drive.raf = requestAnimationFrame(frame);
@@ -427,7 +430,8 @@ function renderResults(r) {
     mode: r.mode,
     score: r.score,
     userLapTime: +r.userLapTime.toFixed(2),
-    events: r.userEvents.map((e) => ({
+    steeringScale: Math.round(r.steeringScale),
+    events: r.rawEvents.map((e) => ({
       dir: e.dir, t0: +e.t0.toFixed(2), t1: +e.t1.toFixed(2), peakDeg: Math.round(e.peakDeg),
     })),
   }, null, 1);
