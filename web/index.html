@@ -7,6 +7,11 @@
   <title>Shadow Lap Spike</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Shadow Lap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -50,6 +55,15 @@
       <label class="mode"><input type="radio" name="mode" value="pro">
         <span><b>Pro</b><small>Nessun aiuto. Solo tu e la pista a memoria.</small></span></label>
     </div>
+    <div class="ios-tip" id="ios-tip" hidden>
+      <b>Su iPhone</b>
+      <ol>
+        <li>Attiva il <b>Blocco rotazione</b> dal Centro di Controllo: così lo schermo non gira nei tornanti.</li>
+        <li>Togli il <b>silenzioso</b> per sentire i beep.</li>
+        <li>Consigliato: Condividi → <b>Aggiungi alla schermata Home</b> per averla a schermo intero.</li>
+      </ol>
+      Quando richiesto, tocca <b>Consenti</b> per i sensori di movimento.
+    </div>
     <button class="btn primary" id="btn-sensors">Attiva sensori e calibra</button>
     <p class="error" id="setup-error" hidden></p>
     <p class="hint">Su computer: muovi il mouse a destra/sinistra oppure usa ← → (Shift per sterzare di più).</p>
@@ -63,6 +77,7 @@
     <div class="steer-readout" id="calib-readout">0°</div>
     <p class="warn" id="calib-warn" hidden></p>
     <button class="btn primary" id="btn-center">Imposta centro</button>
+    <button class="btn small rotate" id="btn-rotate" hidden>↻ Testo capovolto? Ruota</button>
   </section>
 
   <!-- DRIVE -->

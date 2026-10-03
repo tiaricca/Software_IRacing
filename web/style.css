@@ -64,6 +64,7 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: 
   display: block; width: 100%; padding: 14px 16px; margin-top: 10px;
   background: var(--panel); color: var(--text); border: 1px solid var(--line);
   border-radius: 12px; font: inherit; font-weight: 600; cursor: pointer;
+  touch-action: manipulation;
 }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.small { width: auto; display: inline-block; padding: 8px 12px; font-size: 13px; }
@@ -118,12 +119,23 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: 
   display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px;
   padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
            max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  text-align: center; user-select: none; touch-action: none;
+  text-align: center; touch-action: none;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  --screen-h: 100vh; /* height of this screen as the user sees it */
 }
+/* Portrait page while the phone is held landscape (iPhone): rotate the screen
+   so it reads correctly in the hand. --vw/--vh/--rot are set from JS. */
+.landscape.rotated {
+  inset: auto; top: 50%; left: 50%;
+  width: var(--vh); height: var(--vw);
+  --screen-h: var(--vw);
+  transform: translate(-50%, -50%) rotate(var(--rot));
+}
+.btn.rotate { margin: 0; max-width: none; }
 .landscape .btn { max-width: 320px; }
 .calib-step { font-size: 18px; max-width: 560px; }
 
-.meter { position: relative; width: min(90vw, 640px); height: 22px; background: var(--panel); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+.meter { position: relative; width: min(90%, 640px); height: 22px; background: var(--panel); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
 .meter-fill { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: var(--right); }
 .meter-fill.left { background: var(--left); }
 .meter-zero { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: #fff; }
@@ -134,9 +146,9 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: 
 .timer { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .mode-tag { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
 .drive-mid { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; gap: 24px; min-height: 0; }
-.minimap { height: 100%; max-height: 46vh; aspect-ratio: 1; }
+.minimap { height: 100%; max-height: calc(var(--screen-h) * 0.46); aspect-ratio: 1; }
 .minimap:empty { display: none; }
-.minimap .trackmap { max-height: 46vh; }
+.minimap .trackmap { max-height: calc(var(--screen-h) * 0.46); }
 .cue { display: flex; align-items: center; gap: 16px; text-align: left; min-height: 90px; }
 .cue-arrow { font-size: 84px; font-weight: 900; line-height: 1; }
 .cue-name { font-size: 22px; font-weight: 700; }
@@ -172,3 +184,7 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: 
 .actions { margin-top: 16px; }
 .raw { margin-top: 20px; color: var(--muted); font-size: 13px; }
 .raw pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; max-height: 240px; overflow: auto; background: var(--panel); padding: 8px; border-radius: 8px; }
+
+.ios-tip { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; padding: 12px; margin-top: 12px; font-size: 14px; }
+.ios-tip ol { margin: 6px 0; padding-left: 20px; }
+.ios-tip li { margin: 2px 0; }

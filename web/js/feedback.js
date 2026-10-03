@@ -8,7 +8,13 @@ export function unlock() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (AC) ctx = new AC();
   }
-  if (ctx && ctx.state === 'suspended') ctx.resume();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  // iOS only unlocks Web Audio once a sound starts inside the user gesture.
+  const src = ctx.createBufferSource();
+  src.buffer = ctx.createBuffer(1, 1, 22050);
+  src.connect(ctx.destination);
+  src.start(0);
 }
 
 export function beep(freq = 660, duration = 0.12, volume = 0.25) {

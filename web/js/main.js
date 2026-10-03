@@ -64,7 +64,11 @@ document.addEventListener('click', (e) => {
 
 // ---------- immersive mode (Android: fullscreen + orientation lock) ----------
 
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 async function enterImmersive() {
+  ensureWakeLock();
   try {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
@@ -73,20 +77,81 @@ async function enterImmersive() {
   try {
     const type = screen.orientation?.type || '';
     await screen.orientation.lock(type.startsWith('landscape') ? type : 'landscape');
-  } catch { /* not supported or not fullscreen */ }
-  try {
-    if ('wakeLock' in navigator && !wakeLock) {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => { wakeLock = null; });
-    }
-  } catch { /* ignored */ }
+  } catch { /* not supported (iPhone) or not fullscreen */ }
 }
 
 function leaveImmersive() {
   try { screen.orientation?.unlock?.(); } catch { /* ignored */ }
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   if (wakeLock) wakeLock.release().catch(() => {});
+  applyRotation();
 }
+
+// Nobody touches the screen during a lap, so without a wake lock the phone
+// auto-locks mid-lap. Called from every gesture of the flow (Safari may want
+// user activation) and again when the page becomes visible.
+function ensureWakeLock() {
+  if (!('wakeLock' in navigator) || wakeLock) return;
+  navigator.wakeLock.request('screen').then((lock) => {
+    wakeLock = lock;
+    lock.addEventListener('release', () => { wakeLock = null; });
+  }).catch(() => { /* not supported or denied */ });
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && (calib || drive)) ensureWakeLock();
+});
+
+// ---------- screen rotation (iPhone) ----------
+// Safari cannot lock the orientation. With the iOS rotation lock on, the page
+// stays portrait while the phone is held like a wheel; with it off, iOS
+// rotates the page in the middle of a hairpin. Either way, whenever the
+// viewport is portrait during calibration or a lap, the immersive screens
+// are rotated by CSS to stay aligned with the phone as held at calibration.
+
+let holdRotation = 90; // CSS degrees that make a portrait page readable in the held landscape
+let rotationFrozen = false;
+
+function guessHoldRotation() {
+  const { gx, gy } = steering;
+  if (steering.source !== 'motion' || Math.abs(gx) < 1.3 * Math.abs(gy)) return null;
+  // WebKit reports accelerationIncludingGravity with the opposite sign of
+  // Chrome; the stored flip corrects a wrong guess once per device.
+  const platform = IS_IOS ? -1 : 1;
+  const flip = store.load().rotationFlip ? -1 : 1;
+  return (gx > 0 ? 90 : -90) * platform * flip;
+}
+
+let appliedRotation = '';
+
+function applyRotation() {
+  const immersive = Boolean(calib || drive);
+  const portrait = window.innerHeight > window.innerWidth;
+  // Only for a phone actually used as a wheel: a narrow desktop window steered
+  // with the mouse must not rotate.
+  const deg = immersive && portrait && steering.source === 'motion' ? holdRotation : 0;
+  const key = `${deg}|${window.innerWidth}x${window.innerHeight}|${Boolean(calib)}`;
+  if (key === appliedRotation) return;
+  appliedRotation = key;
+  const root = document.documentElement.style;
+  root.setProperty('--vw', `${window.innerWidth}px`);
+  root.setProperty('--vh', `${window.innerHeight}px`);
+  root.setProperty('--rot', `${deg}deg`);
+  for (const s of document.querySelectorAll('.landscape')) s.classList.toggle('rotated', deg !== 0);
+  $('btn-rotate').hidden = !(deg !== 0 && calib);
+}
+
+window.addEventListener('resize', applyRotation);
+window.addEventListener('orientationchange', () => setTimeout(applyRotation, 50));
+
+$('btn-rotate').addEventListener('click', () => {
+  const d = store.load();
+  d.rotationFlip = !d.rotationFlip;
+  store.save(d);
+  holdRotation = -holdRotation;
+  appliedRotation = '';
+  applyRotation();
+});
 
 // ---------- steering meters ----------
 
@@ -108,6 +173,11 @@ steering.onSample((rawValue) => {
       : '—';
     $('calib-warn').hidden = !(steering.source === 'motion' && steering.planar < 0.5);
     $('calib-warn').textContent = 'Tieni il telefono più verticale, con lo schermo verso di te.';
+    if (!rotationFrozen) {
+      const guess = guessHoldRotation();
+      if (guess != null) holdRotation = guess;
+      applyRotation();
+    }
     calibStep();
   }
 });
@@ -189,7 +259,9 @@ $('btn-sensors').addEventListener('click', async () => {
       sensorsStarted = true;
     }
   } catch (e) {
-    err.textContent = e.message || 'Impossibile attivare i sensori.';
+    err.textContent = IS_IOS
+      ? 'Permesso ai sensori di movimento non concesso. Chiudi Safari (anche dalle app recenti), riapri il link e tocca "Consenti" quando richiesto.'
+      : e.message || 'Impossibile attivare i sensori.';
     err.hidden = false;
     return;
   }
@@ -199,13 +271,17 @@ $('btn-sensors').addEventListener('click', async () => {
 
 function startCalibration() {
   calib = { step: 'center', since: null };
+  rotationFrozen = false;
   $('btn-center').hidden = false;
   setCalibText('Tieni il telefono <b>in orizzontale, dritto</b>, come un volante in posizione centrale.<br>Poi tocca <b>Imposta centro</b>.');
   show('calib');
+  applyRotation();
   setTimeout(() => {
     if (calib && !steering.source) {
       $('calib-warn').hidden = false;
-      $('calib-warn').textContent = 'Nessun dato dai sensori. Su Android controlla: impostazioni del sito → Sensori di movimento → Consenti.';
+      $('calib-warn').textContent = IS_IOS
+        ? 'Nessun dato dai sensori. Ricarica la pagina, tocca "Attiva sensori" e poi "Consenti".'
+        : 'Nessun dato dai sensori. Su Android controlla: impostazioni del sito → Sensori di movimento → Consenti.';
     }
   }, 1500);
 }
@@ -214,6 +290,11 @@ function setCalibText(html) { $('calib-text').innerHTML = html; }
 
 $('btn-center').addEventListener('click', () => {
   steering.calibrateCenter();
+  ensureWakeLock();
+  fb.unlock();
+  // The phone is now held as it will be for the whole lap.
+  rotationFrozen = true;
+  applyRotation();
   fb.cue.count();
   $('btn-center').hidden = true;
   if (signLearned) {
@@ -474,6 +555,7 @@ $('btn-copy').addEventListener('click', async () => {
 async function boot() {
   const res = await fetch(DATA_URL);
   ref = await res.json();
+  $('ios-tip').hidden = !IS_IOS;
   go('home');
 }
 

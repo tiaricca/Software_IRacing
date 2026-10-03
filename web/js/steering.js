@@ -22,6 +22,8 @@ export class Steering {
     this.sign = 1;
     this.value = 0;
     this.planar = 1; // share of gravity in the screen plane (tilt check)
+    this.gx = 0; // last gravity components in the device frame (m/s²)
+    this.gy = 0;
     this._lastT = null;
     this._keys = { left: false, right: false, boost: false };
     this._listeners = new Set();
@@ -71,6 +73,8 @@ export class Steering {
     const g = e.accelerationIncludingGravity;
     if (!g || g.x == null || g.y == null) return;
     this.source = 'motion';
+    this.gx = g.x;
+    this.gy = g.y;
     this.planar = Math.min(1, Math.hypot(g.x, g.y) / 9.81);
     this._feed(Math.atan2(g.x, g.y) * 180 / Math.PI);
   };
