@@ -90,7 +90,11 @@ function leaveImmersive() {
 
 // ---------- steering meters ----------
 
-steering.onSample((value) => {
+steering.onSample((rawValue) => {
+  // Before the centre is set the angle is relative to an arbitrary zero
+  // (portrait), so a landscape phone would read ~90°: show nothing instead.
+  const centered = calib?.step !== 'center';
+  const value = centered ? rawValue : 0;
   const s = Math.max(-90, Math.min(90, value)) / 90;
   for (const fill of document.querySelectorAll('.meter-fill')) {
     fill.style.left = `${s >= 0 ? 50 : 50 + s * 50}%`;
@@ -99,7 +103,9 @@ steering.onSample((value) => {
   }
   const readout = $('calib-readout');
   if (!$('screen-calib').hidden) {
-    readout.textContent = `${Math.abs(value).toFixed(0)}° ${value > 2 ? 'D' : value < -2 ? 'S' : ''}`;
+    readout.textContent = centered
+      ? `${Math.abs(value).toFixed(0)}° ${value > 2 ? 'D' : value < -2 ? 'S' : ''}`
+      : '—';
     $('calib-warn').hidden = !(steering.source === 'motion' && steering.planar < 0.5);
     $('calib-warn').textContent = 'Tieni il telefono più verticale, con lo schermo verso di te.';
     calibStep();
