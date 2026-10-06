@@ -249,7 +249,7 @@ export function renderTrack(root, app, layoutId) {
         <span class="grow"><strong>Quiz teorico</strong><span class="meta">In arrivo nella prossima versione</span></span>
         <span class="chip">In arrivo</span></li>
       <li><span class="badge-icon">${icon.wheel}</span>
-        <span class="grow"><strong>Shadow Lap · allenamento libero</strong><span class="meta">${shadowLine}</span></span>
+        <span class="grow"><strong>Shadow Lap · prototipo</strong><span class="meta">Allenamento libero con le modalità dello spike. ${shadowLine}</span></span>
         <a class="btn small" href="#/pista/${layoutId}/shadow-lap">Avvia</a></li>
     </ul>
     <p class="hint">Consigliato: Studio → Quiz → Shadow Lap. Puoi iniziare da qualsiasi attività.</p>
