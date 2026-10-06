@@ -1,0 +1,33 @@
+{
+  "id": "f1600-rookie-2026s4",
+  "simulator": "iRacing",
+  "series": "Formula 1600 Rookie Series",
+  "season": "2026 Season 4",
+  "car": "Ray FF1600",
+  "description": "Serie ufficiale Rookie di formula con la Ray FF1600. Ogni settimana si corre su una pista diversa: puoi preparare qualsiasi settimana, in qualsiasi ordine.",
+  "calendar": {
+    "status": "preliminary",
+    "note": "Calendario preliminare, ancora da confrontare con l'interfaccia di iRacing.",
+    "source": {
+      "title": "iRacingHub — calendario Formula 1600 Rookie 2026 S4",
+      "url": "https://iracinghub.com/iracing-schedule/",
+      "accessed": "2026-10-04"
+    },
+    "weekStartUTC": "00:00",
+    "weekStartNote": "Cambio settimana assunto alle 00:00 UTC del martedì: orario da verificare."
+  },
+  "weeks": [
+    { "week": 1, "start": "2026-09-15", "track": "Summit Point Raceway", "layout": "Summit Point Raceway", "layoutId": "summit-point-raceway", "layoutConfirmed": true, "academy": null },
+    { "week": 2, "start": "2026-09-22", "track": "Rudskogen Motorsenter", "layout": "Layout da confermare", "layoutId": "rudskogen", "layoutConfirmed": false, "academy": null },
+    { "week": 3, "start": "2026-09-29", "track": "Oulton Park Circuit", "layout": "International", "layoutId": "oulton-international", "layoutConfirmed": true, "academy": "oulton-international" },
+    { "week": 4, "start": "2026-10-06", "track": "Lime Rock Park", "layout": "Grand Prix", "layoutId": "lime-rock-gp", "layoutConfirmed": true, "academy": null },
+    { "week": 5, "start": "2026-10-13", "track": "Winton Motor Raceway", "layout": "Club Circuit", "layoutId": "winton-club", "layoutConfirmed": true, "academy": null },
+    { "week": 6, "start": "2026-10-20", "track": "Circuit de Lédenon", "layout": "Layout da confermare", "layoutId": "ledenon", "layoutConfirmed": false, "academy": null },
+    { "week": 7, "start": "2026-10-27", "track": "Tsukuba Circuit", "layout": "2000 Full", "layoutId": "tsukuba-2000-full", "layoutConfirmed": true, "academy": null },
+    { "week": 8, "start": "2026-11-03", "track": "Motorsport Arena Oschersleben", "layout": "Grand Prix", "layoutId": "oschersleben-gp", "layoutConfirmed": true, "academy": null },
+    { "week": 9, "start": "2026-11-10", "track": "Okayama International Circuit", "layout": "Full Course", "layoutId": "okayama-full", "layoutConfirmed": true, "academy": null },
+    { "week": 10, "start": "2026-11-17", "track": "Circuito de Navarra", "layout": "Speed Circuit - Medium", "layoutId": "navarra-speed-medium", "layoutConfirmed": true, "academy": null },
+    { "week": 11, "start": "2026-11-24", "track": "Oran Park Raceway", "layout": "Grand Prix", "layoutId": "oran-park-gp", "layoutConfirmed": true, "academy": null },
+    { "week": 12, "start": "2026-12-01", "track": "Virginia International Raceway", "layout": "North Course", "layoutId": "vir-north", "layoutConfirmed": true, "academy": null }
+  ]
+}

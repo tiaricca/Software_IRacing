@@ -1,11 +1,15 @@
+// Shadow Lap: setup, calibration, lap and results (free training).
+// Moved out of the spike's main.js; the sensing, calibration, iPhone rotation
+// and scoring behaviour is unchanged. M3 replaces the modes with Guidato/Pro,
+// the fixed lap duration and the exam context.
+
 import { Steering } from './steering.js';
 import { createTurnDetector } from './detector.js';
 import { scoreLap } from './scoring.js';
 import { renderTrackMap } from './trackmap.js';
 import * as fb from './feedback.js';
+import { DIR, INTENSITY, MODE_LABEL, esc } from './ui.js';
 
-const DATA_URL = 'data/oulton-international.json';
-const STORE_KEY = 'ta-spike-v1';
 const CENTER_TOLERANCE = 5;
 const RIGHT_LEARN_DEG = 25;
 const MIN_LAP_BEFORE_FINISH = 10; // seconds
@@ -16,56 +20,21 @@ const fmtTime = (s) => {
   return `${m}:${(s - m * 60).toFixed(1).padStart(4, '0')}`;
 };
 const pct = (x) => `${Math.round(x * 100)}%`;
-const DIR = { L: { arrow: '←', label: 'SINISTRA' }, R: { arrow: '→', label: 'DESTRA' } };
-const INTENSITY = { minor: 'piega', small: 'leggera', medium: 'media', large: 'forte' };
-const MODE_LABEL = { rookie: 'Rookie', driver: 'Driver', pro: 'Pro' };
 
-const store = {
-  load() {
-    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
-  },
-  save(data) {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch { /* private mode */ }
-  },
-};
+export const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 const steering = new Steering();
-let ref = null;
+let hooks = null; // { show, onExit, onAttempt, getRotationFlip, setRotationFlip }
+let ctx = null; // { ref, key, title }
 let sensorsStarted = false;
 let signLearned = false;
 let mode = 'rookie';
 let wakeLock = null;
 let calib = null;
 let drive = null;
-let lastResult = null;
-
-// ---------- navigation ----------
-
-function show(name) {
-  for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== `screen-${name}`;
-  window.scrollTo(0, 0);
-}
-
-function go(name) {
-  if (name !== 'calib' && name !== 'drive') {
-    stopDrive();
-    calib = null;
-    leaveImmersive();
-  }
-  if (name === 'home') renderHome();
-  if (name === 'study') renderStudy();
-  show(name);
-}
-
-document.addEventListener('click', (e) => {
-  const target = e.target.closest('[data-go]');
-  if (target) go(target.dataset.go);
-});
 
 // ---------- immersive mode (Android: fullscreen + orientation lock) ----------
-
-const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
-  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 async function enterImmersive() {
   ensureWakeLock();
@@ -118,7 +87,7 @@ function guessHoldRotation() {
   // WebKit reports accelerationIncludingGravity with the opposite sign of
   // Chrome; the stored flip corrects a wrong guess once per device.
   const platform = IS_IOS ? -1 : 1;
-  const flip = store.load().rotationFlip ? -1 : 1;
+  const flip = hooks.getRotationFlip() ? -1 : 1;
   return (gx > 0 ? 90 : -90) * platform * flip;
 }
 
@@ -144,15 +113,6 @@ function applyRotation() {
 window.addEventListener('resize', applyRotation);
 window.addEventListener('orientationchange', () => setTimeout(applyRotation, 50));
 
-$('btn-rotate').addEventListener('click', () => {
-  const d = store.load();
-  d.rotationFlip = !d.rotationFlip;
-  store.save(d);
-  holdRotation = -holdRotation;
-  appliedRotation = '';
-  applyRotation();
-});
-
 // ---------- steering meters ----------
 
 steering.onSample((rawValue) => {
@@ -166,9 +126,8 @@ steering.onSample((rawValue) => {
     fill.style.width = `${Math.abs(s) * 50}%`;
     fill.classList.toggle('left', s < 0);
   }
-  const readout = $('calib-readout');
   if (!$('screen-calib').hidden) {
-    readout.textContent = centered
+    $('calib-readout').textContent = centered
       ? `${Math.abs(value).toFixed(0)}° ${value > 2 ? 'D' : value < -2 ? 'S' : ''}`
       : '—';
     $('calib-warn').hidden = !(steering.source === 'motion' && steering.planar < 0.5);
@@ -182,99 +141,86 @@ steering.onSample((rawValue) => {
   }
 });
 
-// ---------- home ----------
+// ---------- entry points ----------
 
-function renderHome() {
-  const data = store.load();
-  $('home-eyebrow').textContent = `${ref.simulator} · ${ref.car}`;
-  $('home-title').textContent = ref.track;
-  const majors = ref.corners.length;
-  $('home-sub').textContent =
-    `${ref.layout} · ${(ref.lengthM / 1000).toFixed(2).replace('.', ',')} km · ${majors} curve · senso orario`;
-  // Show the best of the hardest mode played: assisted scores are easier.
-  const best = data.best && typeof data.best === 'object' ? data.best : {};
-  const hardest = ['pro', 'driver', 'rookie'].find((m) => best[m] != null);
-  $('best-score').innerHTML = hardest
-    ? `${best[hardest]}<small> ${MODE_LABEL[hardest]}</small>`
-    : '—';
-  $('attempts').textContent = (data.attempts || []).length;
-  renderTrackMap($('home-map'), ref, { labels: false });
-}
+export function initShadowLap(h) {
+  hooks = h;
+  $('ios-tip').hidden = !IS_IOS;
 
-// ---------- study ----------
-
-function renderStudy() {
-  const data = store.load();
-  const notes = data.notes || {};
-  const map = renderTrackMap($('study-map'), ref, {
-    onCornerClick: (id) => {
-      map.highlight(id);
-      document.getElementById(`corner-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    },
+  $('btn-sensors').addEventListener('click', async () => {
+    mode = document.querySelector('input[name="mode"]:checked').value;
+    const err = $('setup-error');
+    err.hidden = true;
+    fb.unlock();
+    try {
+      if (!sensorsStarted) {
+        await steering.start();
+        sensorsStarted = true;
+      }
+    } catch (e) {
+      err.textContent = IS_IOS
+        ? 'Permesso ai sensori di movimento non concesso. Chiudi Safari (anche dalle app recenti), riapri il link e tocca "Consenti" quando richiesto.'
+        : e.message || 'Impossibile attivare i sensori.';
+      err.hidden = false;
+      return;
+    }
+    await enterImmersive();
+    startCalibration();
   });
 
-  $('study-sequence').innerHTML = '<span class="eyebrow">Sequenza</span>' + ref.corners
-    .map((c) => `<span class="seq seq-${c.dir}${c.minor ? ' seq-minor' : ''}" title="${c.id} ${c.name}">${DIR[c.dir].arrow}</span>`)
-    .join('');
-
-  const list = $('corner-list');
-  list.replaceChildren();
-  for (const c of ref.corners) {
-    const li = document.createElement('li');
-    li.id = `corner-${c.id}`;
-    li.className = 'corner-item';
-    li.innerHTML = `
-      <div class="ci-head">
-        <span class="ci-id">${c.id}</span>
-        <span class="ci-name"></span>
-        <span class="dir dir-${c.dir}">${DIR[c.dir].arrow} ${DIR[c.dir].label}</span>
-      </div>
-      <div class="ci-meta">${c.minor ? 'piega veloce' : `curva ${INTENSITY[c.intensity]}`} · ~${c.angleDeg}° · ~${c.apexKph} km/h <em>(stima)</em></div>
-      <p class="ci-note"></p>
-      <textarea rows="2" placeholder="Le mie note: riferimento di frenata, marcia, cosa evitare…"></textarea>`;
-    li.querySelector('.ci-name').textContent = c.name;
-    li.querySelector('.ci-note').textContent = c.note;
-    const ta = li.querySelector('textarea');
-    ta.value = notes[c.id] || '';
-    ta.addEventListener('input', () => {
-      const d = store.load();
-      d.notes = { ...(d.notes || {}), [c.id]: ta.value };
-      store.save(d);
-    });
-    li.addEventListener('click', (e) => { if (e.target !== ta) map.highlight(c.id); });
-    list.append(li);
+  $('btn-center').addEventListener('click', onCenter);
+  $('btn-rotate').addEventListener('click', () => {
+    hooks.setRotationFlip(!hooks.getRotationFlip());
+    holdRotation = -holdRotation;
+    appliedRotation = '';
+    applyRotation();
+  });
+  $('btn-calib-close').addEventListener('click', () => { abortShadowLap(); showSetup(); });
+  $('btn-abort').addEventListener('click', () => { abortShadowLap(); showSetup(); });
+  $('btn-finish').addEventListener('click', finishLap);
+  for (const id of ['btn-setup-back', 'btn-results-back', 'btn-results-track']) {
+    $(id).addEventListener('click', () => { abortShadowLap(); hooks.onExit(ctx); });
   }
+  $('btn-retry').addEventListener('click', async () => {
+    fb.unlock();
+    await enterImmersive();
+    startCalibration();
+  });
+  $('btn-copy').addEventListener('click', copyRaw);
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && drive?.phase === 'lap' && !$('btn-finish').disabled) {
+      e.preventDefault();
+      finishLap();
+    }
+  });
 }
 
-// ---------- setup & calibration ----------
+export function openShadowSetup(context) {
+  ctx = context;
+  $('setup-track').textContent = context.title;
+  $('setup-ref-note').textContent = context.refNote;
+  showSetup();
+}
 
-$('btn-sensors').addEventListener('click', async () => {
-  mode = document.querySelector('input[name="mode"]:checked').value;
-  const err = $('setup-error');
-  err.hidden = true;
-  fb.unlock();
-  try {
-    if (!sensorsStarted) {
-      await steering.start();
-      sensorsStarted = true;
-    }
-  } catch (e) {
-    err.textContent = IS_IOS
-      ? 'Permesso ai sensori di movimento non concesso. Chiudi Safari (anche dalle app recenti), riapri il link e tocca "Consenti" quando richiesto.'
-      : e.message || 'Impossibile attivare i sensori.';
-    err.hidden = false;
-    return;
-  }
-  await enterImmersive();
-  startCalibration();
-});
+function showSetup() {
+  $('setup-error').hidden = true;
+  hooks.show('setup');
+}
+
+export function abortShadowLap() {
+  stopDrive();
+  calib = null;
+  leaveImmersive();
+}
+
+// ---------- calibration ----------
 
 function startCalibration() {
   calib = { step: 'center', since: null };
   rotationFrozen = false;
   $('btn-center').hidden = false;
   setCalibText('Tieni il telefono <b>in orizzontale, dritto</b>, come un volante in posizione centrale.<br>Poi tocca <b>Imposta centro</b>.');
-  show('calib');
+  hooks.show('calib');
   applyRotation();
   setTimeout(() => {
     if (calib && !steering.source) {
@@ -288,7 +234,7 @@ function startCalibration() {
 
 function setCalibText(html) { $('calib-text').innerHTML = html; }
 
-$('btn-center').addEventListener('click', () => {
+function onCenter() {
   steering.calibrateCenter();
   ensureWakeLock();
   fb.unlock();
@@ -304,7 +250,7 @@ $('btn-center').addEventListener('click', () => {
     calib = { step: 'right', since: null };
     setCalibText('Ora gira il telefono <b>a DESTRA →</b> come per affrontare una curva.');
   }
-});
+}
 
 function calibStep() {
   if (!calib) return;
@@ -335,7 +281,7 @@ function calibStep() {
 
 function buildCues() {
   const cues = [];
-  for (const c of ref.corners) {
+  for (const c of ctx.ref.corners) {
     if (mode === 'rookie') {
       if (c.brakeT != null) cues.push({ at: c.brakeT, fire: fb.cue.brake });
       cues.push({ at: c.t, fire: c.dir === 'R' ? fb.cue.right : fb.cue.left });
@@ -348,7 +294,7 @@ function buildCues() {
 
 function currentCorner(elapsed) {
   let current = null;
-  for (const c of ref.corners) {
+  for (const c of ctx.ref.corners) {
     const from = (c.brakeT ?? c.t) - 1.2;
     if (elapsed >= from && elapsed <= c.t + c.duration + 0.3) current = c;
   }
@@ -356,12 +302,12 @@ function currentCorner(elapsed) {
 }
 
 function startDrive() {
-  show('drive');
+  hooks.show('drive');
   $('drive-mode').textContent = MODE_LABEL[mode];
   $('btn-finish').disabled = true;
   $('cue').innerHTML = '';
   $('screen-drive').dataset.mode = mode;
-  const minimap = mode === 'rookie' ? renderTrackMap($('drive-map'), ref, { labels: false }) : null;
+  const minimap = mode === 'rookie' ? renderTrackMap($('drive-map'), ctx.ref, { labels: false }) : null;
   if (!minimap) $('drive-map').replaceChildren();
 
   drive = { phase: 'countdown', raf: 0, unsub: null, timers: [] };
@@ -386,6 +332,7 @@ function startDrive() {
 }
 
 function beginLap(minimap) {
+  const ref = ctx.ref;
   const t0 = performance.now() / 1000;
   const detector = createTurnDetector();
   const cues = buildCues();
@@ -408,8 +355,8 @@ function beginLap(minimap) {
         shownCorner = c;
         $('cue').innerHTML = c
           ? `<div class="cue-arrow dir-${c.dir}">${DIR[c.dir].arrow}</div>
-             <div><div class="cue-name">${c.id} · ${c.name}</div>
-             <div class="cue-dir dir-${c.dir}">${DIR[c.dir].label} · ${INTENSITY[c.intensity]}</div></div>`
+             <div><div class="cue-name">${c.id} · ${esc(c.name)}</div>
+             <div class="cue-dir dir-${c.dir}">${DIR[c.dir].label.toUpperCase()} · ${INTENSITY[c.intensity]}</div></div>`
           : '';
       }
     }
@@ -437,46 +384,22 @@ function finishLap() {
   const events = drive.detector.finish(elapsed);
   stopDrive();
   fb.cue.go();
-  const result = scoreLap(ref, events, elapsed);
+  const result = scoreLap(ctx.ref, events, elapsed);
   result.mode = mode;
-  saveAttempt(result);
-  lastResult = result;
+  hooks.onAttempt(ctx, {
+    at: new Date().toISOString(), mode, context: 'training', score: result.score, lap: +elapsed.toFixed(2),
+  });
   leaveImmersive();
   renderResults(result);
-  show('results');
+  hooks.show('results');
 }
-
-$('btn-finish').addEventListener('click', finishLap);
-$('btn-abort').addEventListener('click', () => go('setup'));
-document.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && drive?.phase === 'lap' && !$('btn-finish').disabled) {
-    e.preventDefault();
-    finishLap();
-  }
-});
-
-$('btn-retry').addEventListener('click', async () => {
-  fb.unlock();
-  await enterImmersive();
-  startCalibration();
-});
 
 // ---------- results ----------
-
-function saveAttempt(r) {
-  const data = store.load();
-  data.attempts = [...(data.attempts || []), {
-    at: new Date().toISOString(), mode: r.mode, score: r.score, lap: +r.userLapTime.toFixed(2),
-  }].slice(-50);
-  data.best = { ...(data.best || {}) };
-  data.best[r.mode] = Math.max(data.best[r.mode] ?? 0, r.score);
-  store.save(data);
-}
 
 function renderResults(r) {
   $('res-score').textContent = r.score;
   $('res-sub').textContent =
-    `${MODE_LABEL[r.mode]} · giro mentale ${fmtTime(r.userLapTime)} · riferimento stimato ${fmtTime(r.refLapTime)}`;
+    `Allenamento libero · ${MODE_LABEL[r.mode]} · giro mentale ${fmtTime(r.userLapTime)} · riferimento stimato ${fmtTime(r.refLapTime)}`;
 
   const metric = (label, value, cls = '') => `<div class="metric ${cls}"><strong>${value}</strong><span>${label}</span></div>`;
   $('res-metrics').innerHTML = [
@@ -502,7 +425,7 @@ function renderResults(r) {
     const detail = p.user
       ? `${p.dt >= 0 ? '+' : ''}${p.dt.toFixed(1)}s · ${INTENSITY[c.intensity]} → ${INTENSITY[p.userIntensity]}`
       : '';
-    return `<tr><td class="ci-id">${c.id}</td><td>${c.name}</td>
+    return `<tr><td class="ci-id">${c.id}</td><td>${esc(c.name)}</td>
       <td class="dir dir-${c.dir}">${DIR[c.dir].arrow}</td><td>${status}</td><td class="muted">${detail}</td></tr>`;
   });
   $('res-table').innerHTML = rows.join('');
@@ -540,7 +463,7 @@ function renderTimeline(r) {
     `<svg viewBox="-10 0 ${W + 20} 104" preserveAspectRatio="none">${parts.join('')}</svg>`;
 }
 
-$('btn-copy').addEventListener('click', async () => {
+async function copyRaw() {
   try {
     await navigator.clipboard.writeText($('res-raw').textContent);
     $('btn-copy').textContent = 'Copiato';
@@ -548,17 +471,4 @@ $('btn-copy').addEventListener('click', async () => {
     $('btn-copy').textContent = 'Copia non riuscita';
   }
   setTimeout(() => { $('btn-copy').textContent = 'Copia JSON'; }, 1500);
-});
-
-// ---------- boot ----------
-
-async function boot() {
-  const res = await fetch(DATA_URL);
-  ref = await res.json();
-  $('ios-tip').hidden = !IS_IOS;
-  go('home');
 }
-
-boot().catch((e) => {
-  document.body.innerHTML = `<p class="error" style="padding:16px">Errore nel caricamento dei dati: ${e.message}</p>`;
-});

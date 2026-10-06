@@ -1,0 +1,215 @@
+{
+  "id": "oulton-international",
+  "seasonId": "f1600-rookie-2026s4",
+  "status": "pilot",
+  "statusNote": "Academy pilota: Studio parziale, Quiz in arrivo, Shadow Lap con riferimento stimato.",
+  "circuit": {
+    "name": "Oulton Park",
+    "location": "Little Budworth, Cheshire (Inghilterra)"
+  },
+  "layout": {
+    "name": "International",
+    "lengthText": "circa 4,3 km",
+    "turns": 17,
+    "direction": "orario"
+  },
+  "car": "Ray FF1600",
+  "shadowLap": {
+    "reference": "data/oulton-international.json",
+    "note": "Riferimento stimato dalla geometria con un modello semplificato: non è un giro reale."
+  },
+  "sources": {
+    "wikipedia": {
+      "short": "Wikipedia",
+      "title": "Oulton Park — Wikipedia (inglese)",
+      "url": "https://en.wikipedia.org/wiki/Oulton_Park",
+      "accessed": "2026-10-06",
+      "usage": "Fatti storici e dati del layout, riscritti con parole nostre."
+    },
+    "osm": {
+      "short": "OpenStreetMap",
+      "title": "OpenStreetMap — geometria del circuito",
+      "url": "https://www.openstreetmap.org/copyright",
+      "accessed": "2026-10-02",
+      "usage": "Mappa, ordine e direzione delle curve, distanze approssimative. © OpenStreetMap contributors, ODbL."
+    }
+  },
+  "study": {
+    "chapters": [
+      {
+        "id": "intro",
+        "kind": "intro",
+        "title": "Conosci il circuito",
+        "summary": "Dove siamo, com'è fatto il layout International e un po' di storia.",
+        "minutes": 3,
+        "status": "ready",
+        "map": { "labels": "all" },
+        "blocks": [
+          {
+            "type": "text",
+            "lead": true,
+            "text": "Oulton Park è un circuito stradale del Cheshire, in Inghilterra, ricavato nel parco di una vecchia tenuta di campagna. Il layout International, quello della Formula 1600 Rookie, si percorre in senso orario e alterna curve ampie e veloci a chicane strette.",
+            "sources": ["wikipedia", "osm"]
+          },
+          {
+            "type": "facts",
+            "title": "Scheda",
+            "items": [
+              { "label": "Luogo", "value": "Little Budworth, Cheshire (Inghilterra)", "sources": ["wikipedia"] },
+              { "label": "Layout", "value": "International, in questa forma dal 2003", "sources": ["wikipedia"] },
+              { "label": "Lunghezza", "value": "Circa 4,3 km", "note": "Le fonti oscillano tra 4,31 e 4,33 km.", "sources": ["wikipedia", "osm"] },
+              { "label": "Curve", "value": "17", "sources": ["wikipedia"] },
+              { "label": "Senso di marcia", "value": "Orario", "sources": ["osm"] },
+              { "label": "Auto della serie", "value": "Ray FF1600" }
+            ]
+          },
+          {
+            "type": "sequences",
+            "title": "Come studieremo il giro",
+            "text": "L'Academy divide il giro in cinque sequenze di curve, da studiare una alla volta. È una divisione pensata per ricordare il tracciato, non i settori cronometrati di iRacing."
+          },
+          {
+            "type": "text",
+            "title": "Un po' di storia",
+            "text": "Il circuito nasce nel 1953 per iniziativa del Mid-Cheshire Car Club, nel parco della tenuta di Oulton: la villa era andata distrutta in un incendio nel 1926. Il primo meeting si corre l'8 agosto 1953. Dal 1954 Oulton ospita la Gold Cup, che per anni è una gara di Formula 1 non valida per il campionato: Stirling Moss la vince cinque volte, l'ultima nel 1961 con la Ferguson P99 a trazione integrale. Oggi ci corrono, tra gli altri, il BTCC, il British Superbike e il British GT.",
+            "sources": ["wikipedia"]
+          },
+          {
+            "type": "list",
+            "title": "Tre particolarità",
+            "items": [
+              { "text": "È un vero circuito stradale: quasi tutti gli altri circuiti britannici nati nel dopoguerra sono stati ricavati da ex aeroporti.", "sources": ["wikipedia"] },
+              { "text": "La chicane Hislop's, destra-sinistra, esiste dal 1991: è stata aggiunta circa 135 m prima di Knickerbrook, dopo l'incidente mortale di Paul Warwick, per rallentare le auto in fondo alla discesa di Hilltop.", "sources": ["wikipedia"] },
+              { "text": "Dopo Knickerbrook la pista sale lungo Clay Hill, con una pendenza del 13%.", "sources": ["wikipedia"] }
+            ]
+          },
+          {
+            "type": "callout",
+            "text": "Nel giro mentale conta soprattutto l'ordine delle curve e la loro direzione: il resto dello Studio li affronta una sequenza alla volta."
+          }
+        ]
+      },
+      {
+        "id": "old-hall-cascades",
+        "kind": "sequence",
+        "title": "Old Hall → Cascades",
+        "summary": "La partenza del giro: Old Hall, la piega di Denton's e la discesa verso Cascades.",
+        "corners": ["T1", "T3"],
+        "status": "planned"
+      },
+      {
+        "id": "island-shell",
+        "kind": "sequence",
+        "title": "Island Bend → Shell Oils",
+        "summary": "La lunga sinistra di Island Bend e il tornante di Shell Oils.",
+        "corners": ["T4", "T5"],
+        "status": "planned"
+      },
+      {
+        "id": "brittens",
+        "kind": "sequence",
+        "title": "Britten's",
+        "summary": "La piega verso Britten's e la chicane sinistra-destra-sinistra.",
+        "corners": ["T6", "T9"],
+        "status": "planned"
+      },
+      {
+        "id": "hislops-knickerbrook",
+        "kind": "sequence",
+        "title": "Hislop's → Knickerbrook",
+        "summary": "La frenata in fondo a Hilltop, la chicane Hislop's e Knickerbrook.",
+        "corners": ["T10", "T12"],
+        "status": "planned"
+      },
+      {
+        "id": "clay-hill-deer-leap",
+        "kind": "sequence",
+        "title": "Clay Hill → Deer Leap",
+        "summary": "L'ultima sequenza: la salita, Druids, Lodge e la piega verso il traguardo.",
+        "corners": ["T13", "T17"],
+        "minutes": 4,
+        "status": "ready",
+        "map": { "labels": "focus" },
+        "blocks": [
+          {
+            "type": "text",
+            "lead": true,
+            "text": "Uscito da Knickerbrook, il giro entra nell'ultimo terzo: la piega a sinistra in salita di Clay Hill, una seconda piega a sinistra, la lunga destra di Druids, Lodge e un'ultima piega prima del traguardo.",
+            "sources": ["osm", "wikipedia"]
+          },
+          { "type": "sequence", "title": "In ordine" },
+          {
+            "type": "corner",
+            "corner": "T13",
+            "where": "Piega leggera a sinistra, circa 240 m dopo Knickerbrook. Qui la strada sale: Clay Hill ha una pendenza del 13%.",
+            "whereSources": ["osm", "wikipedia"],
+            "guide": [
+              { "label": "Come affrontarla", "text": "Movimento piccolo: è una piega, non una curva da impostare. Conta di più restare composti in salita e arrivare ben messi alla piega successiva." }
+            ]
+          },
+          {
+            "type": "corner",
+            "corner": "T14",
+            "where": "Seconda piega a sinistra, circa 230 m dopo Clay Hill. Druids arriva circa 200 m più avanti.",
+            "whereSources": ["osm"],
+            "guide": [
+              { "label": "Come affrontarla", "text": "Druids gira a destra: usa questa piega per portarti verso il lato sinistro della pista, da dove impostare la curva successiva." }
+            ]
+          },
+          {
+            "type": "corner",
+            "corner": "T15",
+            "where": "Lunga curva a destra. La geometria mostra due parti distinte, per circa 90° in totale. Dopo Druids ci sono circa 400 m prima di Lodge.",
+            "whereSources": ["osm"],
+            "guide": [
+              { "label": "Ingresso", "text": "Arriva dal lato sinistro della pista." },
+              { "label": "Traiettoria", "text": "Leggila come una curva unica con due punti di corda, senza stringere troppo presto la prima parte." },
+              { "label": "Uscita", "text": "Il tratto verso Lodge è lungo: un'uscita pulita qui si porta dietro tutta la velocità del tratto successivo." },
+              { "label": "Errore comune", "text": "Chiudere troppo presto la prima parte e ritrovarsi stretti nella seconda." }
+            ]
+          },
+          {
+            "type": "corner",
+            "corner": "T16",
+            "where": "Destra di circa 110°, la curva più stretta della sequenza. Dopo Lodge restano circa 450 m quasi dritti fino a Old Hall, con la sola piega di Deer Leap.",
+            "whereSources": ["osm"],
+            "guide": [
+              { "label": "Frenata", "text": "Arrivi dal tratto dopo Druids: è il punto in cui rallenti di più in questa sequenza." },
+              { "label": "Apice", "text": "Cerca un punto di corda ritardato: dopo Lodge la pista porta verso il traguardo, quindi conta l'uscita." },
+              { "label": "Errore comune", "text": "Anticipare la corda: l'auto allarga in uscita proprio quando vorresti accelerare." }
+            ]
+          },
+          {
+            "type": "corner",
+            "corner": "T17",
+            "where": "Piega a sinistra circa 200 m dopo Lodge e circa 170 m prima della linea del traguardo.",
+            "whereSources": ["osm"],
+            "guide": [
+              { "label": "Come affrontarla", "text": "Movimento piccolo: se l'uscita da Lodge è stata pulita, qui serve soltanto restare composti fino al traguardo." }
+            ]
+          },
+          {
+            "type": "list",
+            "title": "Da ricordare",
+            "items": [
+              { "text": "Due pieghe a sinistra (Clay Hill, Water Tower), poi due curve a destra (Druids, Lodge), poi una piega a sinistra (Deer Leap)." },
+              { "text": "Druids si legge come una curva sola in due parti." },
+              { "text": "Lodge è la curva più stretta della sequenza: conta l'uscita verso il traguardo." }
+            ]
+          },
+          {
+            "type": "callout",
+            "text": "Marce, velocità e punti di frenata della Ray FF1600 non sono indicati: li aggiungeremo solo quando saranno verificati."
+          }
+        ]
+      },
+      {
+        "id": "full-lap",
+        "kind": "summary",
+        "title": "Giro completo",
+        "summary": "Il riepilogo di tutto il tracciato e le cose da ricordare prima del Quiz e dello Shadow Lap.",
+        "status": "planned"
+      }
+    ]
+  }
+}
