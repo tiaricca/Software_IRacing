@@ -9,14 +9,14 @@ Stagione coperta: iRacing · Formula 1600 Rookie Series 2026 Season 4 · Ray FF1
 ```
 web/                          app statica, nessuno step di build (moduli ES)
   index.html, style.css       shell, temi chiaro/scuro su variabili CSS
-  js/app.js                   router a hash, caricamento dati, barra inferiore
-  js/views.js                 Home, campionato, pagina pista, impostazioni
+  js/app.js                   router a hash, caricamento dati, tab Home · Piste · Shadow Lap
+  js/views.js                 Home, Piste, pagina pista, impostazioni
   js/study.js                 indice Studio, lettore di capitolo, curve e note
   js/season.js                settimana corrente dal calendario (puro)
   js/store.js                 progressi locali + migrazione dallo spike (puro + IO)
   js/progress.js              stati derivati: capitoli, pista, statistiche (puro)
   js/theme.js                 Automatico / Chiaro / Scuro
-  js/shadowlap.js             Shadow Lap: setup, calibrazione, giro, risultati
+  js/shadowlap.js             tab Shadow Lap: pista, modalità, calibrazione, giro, risultati
   js/steering.js              sterzo dal vettore gravità (+ mouse/frecce su computer)
   js/detector.js, scoring.js  curve rilevate e punteggio (puri)
   js/trackmap.js              mappa SVG, sequenze evidenziate, ghost
