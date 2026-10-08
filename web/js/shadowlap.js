@@ -178,7 +178,7 @@ export function initShadowLap(h) {
   $('btn-calib-close').addEventListener('click', () => { abortShadowLap(); showSetup(); });
   $('btn-abort').addEventListener('click', () => { abortShadowLap(); showSetup(); });
   $('btn-finish').addEventListener('click', finishLap);
-  for (const id of ['btn-setup-back', 'btn-results-back', 'btn-results-track']) {
+  for (const id of ['btn-results-back', 'btn-results-track']) {
     $(id).addEventListener('click', () => { abortShadowLap(); hooks.onExit(ctx); });
   }
   $('btn-retry').addEventListener('click', async () => {
@@ -187,6 +187,10 @@ export function initShadowLap(h) {
     startCalibration();
   });
   $('btn-copy').addEventListener('click', copyRaw);
+  for (const input of document.querySelectorAll('input[name="mode"]')) {
+    input.addEventListener('change', showModeDescription);
+  }
+  showModeDescription();
   document.addEventListener('keydown', (e) => {
     if ((e.key === 'Enter' || e.key === ' ') && drive?.phase === 'lap' && !$('btn-finish').disabled) {
       e.preventDefault();
@@ -195,10 +199,23 @@ export function initShadowLap(h) {
   });
 }
 
+// Spike modes, unchanged until M3 replaces them with Guidato/Pro.
+const MODE_DESC = {
+  rookie: 'Nome e direzione di ogni curva, mappa con il puntino, beep. Finisce da solo al traguardo.',
+  driver: 'Solo un beep nelle frenate: la direzione la ricordi tu. Finisce da solo al traguardo.',
+  pro: 'Nessun aiuto: tu e la pista a memoria. A fine giro tocca TRAGUARDO.',
+};
+
+function showModeDescription() {
+  const value = document.querySelector('input[name="mode"]:checked')?.value ?? 'rookie';
+  $('mode-desc').textContent = MODE_DESC[value];
+}
+
 export function openShadowSetup(context) {
   ctx = context;
   $('setup-track').textContent = context.title;
   $('setup-ref-note').textContent = context.refNote;
+  renderTrackMap($('setup-map'), context.ref, { labels: false, variant: 'hero' });
   showSetup();
 }
 

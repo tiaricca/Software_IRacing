@@ -1,199 +1,147 @@
-// Views: Home, campionato, pagina pista, impostazioni.
+// Views: Home, Piste, pagina pista, impostazioni.
+//
+// M1-C rule of thumb: one primary action per screen, progress secondary,
+// nothing that looks usable before it exists. Oulton is presented as the
+// demo Academy, never as "this week's" track.
 
 import { seasonPosition, weekRangeLabel, findWeekByLayout } from './season.js';
 import {
-  studySummary, shadowSummary, trackStatus, continueTarget, homeStats, hasAnyProgress,
+  chapterState, nextStudyAction, shadowSummary, homeStats, hasAnyProgress,
 } from './progress.js';
 import { renderTrackMap } from './trackmap.js';
 import { getTheme, setTheme } from './theme.js';
 import * as store from './store.js';
-import { esc, icon, relativeDay, MODE_LABEL } from './ui.js';
-
-const STATUS = {
-  not_started: { mark: '–', label: 'Non iniziata' },
-  in_progress: { mark: '◐', label: 'In corso' },
-  passed: { mark: '✓', label: 'Superata' },
-};
+import { esc, icon } from './ui.js';
 
 function mountMaps(root, app) {
   for (const el of root.querySelectorAll('[data-map]')) {
     const ref = app.refs[el.dataset.map];
-    if (ref) renderTrackMap(el, ref, { labels: el.dataset.labels === 'true' });
+    if (ref) renderTrackMap(el, ref, { labels: false, variant: el.dataset.variant || null });
   }
 }
 
-function weekTag(app, index) {
-  const pos = seasonPosition(app.season, app.now());
-  if (pos.current === index) return 'Questa settimana';
-  if (pos.next === index) return 'Prossima';
-  return null;
+const gearLink = `<a class="icon-btn" href="#/impostazioni" aria-label="Impostazioni">${icon.gear}</a>`;
+
+// Chapter progress as one segment per chapter: done / reading / to do / planned.
+function chapterSegments(app, layoutId) {
+  const academy = app.academies[layoutId];
+  const progress = app.progress(layoutId);
+  return `<span class="segments" aria-hidden="true">${academy.study.chapters
+    .map((c) => `<i class="seg-${chapterState(progress, c)}"></i>`).join('')}</span>`;
 }
 
-function statusOf(app, week) {
-  return week.academy ? trackStatus(app.progress(week.layoutId)) : null;
-}
-
-function seriesCard(app) {
-  const s = app.season;
-  return `<a class="card link-card series-card" href="#/campionato">
-    <span class="badge-icon">${icon.flag}</span>
-    <span class="grow"><span class="eyebrow">Campionato · ${esc(s.season)}</span>
-      <strong class="card-title">${esc(s.series)}</strong>
-      <span class="meta">${esc(s.car)} · ${s.weeks.length} settimane</span></span>
-    <span class="chev">${icon.chevron}</span></a>`;
-}
-
-// Hero card for a week: full Academy, or an honest "in preparazione".
-function weekHero(app, index, { cta }) {
-  const s = app.season;
-  const w = s.weeks[index];
-  const pos = seasonPosition(s, app.now());
-  const label = pos.phase === 'before' && index === 0 ? 'Prima settimana'
-    : pos.phase === 'after' ? 'Ultima settimana' : 'Questa settimana';
-  const head = `<div class="eyebrow live"><span class="dot"></span>${label} · Sett. ${w.week}/${s.weeks.length} · ${weekRangeLabel(s, index)}</div>
-    <h2 class="display">${esc(w.track)}</h2>
-    <div class="meta mono">${esc(w.layout)} · ${esc(s.car)}</div>`;
-  if (w.academy) {
-    const academy = app.academies[w.layoutId];
-    return `<div class="card hero accent-border">${head}
-      <a class="map-box" href="#/pista/${w.layoutId}" data-map="${w.layoutId}" aria-label="Apri ${esc(academy.circuit.name)}"></a>
-      <a class="btn primary" href="#/pista/${w.layoutId}">${cta}</a></div>`;
-  }
-  return `<div class="card hero">${head}
-    <p class="notice">Academy in preparazione: studio, quiz e Shadow Lap di questa pista non sono ancora disponibili.</p>
-    <a class="btn" href="#/pista/${w.layoutId}">Apri la settimana</a></div>`;
-}
-
-function availableCards(app, excludeIndex, { firstVisit }) {
-  const s = app.season;
-  const items = s.weeks.map((w, i) => ({ w, i })).filter(({ w, i }) => w.academy && i !== excludeIndex);
-  if (!items.length) return '';
-  return `<h3 class="section-label">Già disponibile</h3>` + items.map(({ w, i }) => {
-    const academy = app.academies[w.layoutId];
-    const st = STATUS[statusOf(app, w)];
-    return `<a class="card link-card academy-card" href="#/pista/${w.layoutId}">
-      <span class="thumb" data-map="${w.layoutId}"></span>
-      <span class="grow"><span class="eyebrow">Sett. ${w.week} · ${weekRangeLabel(s, i)}</span>
-        <strong class="card-title">${esc(academy.circuit.name)}</strong>
-        <span class="meta">${esc(academy.layout.name)} · Academy pilota · ${st.label.toLowerCase()}</span></span>
-      <span class="chev">${firstVisit ? '' : icon.chevron}</span></a>
-      ${firstVisit ? `<a class="btn primary" href="#/pista/${w.layoutId}">Prepara ${esc(academy.circuit.name)}</a>` : ''}`;
-  }).join('');
-}
-
-function activityRows(app, state) {
-  const completed = new Set(state.activity.filter((a) => a.type === 'chapter_completed').map((a) => `${a.academy}/${a.chapter}`));
-  const rows = [...state.activity].reverse()
-    .filter((a) => !(a.type === 'chapter_started' && completed.has(`${a.academy}/${a.chapter}`)))
-    .slice(0, 5)
-    .map((a) => {
-      const academy = app.byKey[a.academy];
-      if (!academy) return '';
-      const when = `${esc(academy.circuit.name)} · ${relativeDay(a.at, app.now())}`;
-      if (a.type === 'shadow_lap') {
-        return `<li><span class="badge-icon">${icon.wheel}</span><span class="grow"><strong>Shadow Lap · ${MODE_LABEL[a.mode] ?? a.mode}</strong><span class="meta">${when}</span></span><span class="value">${a.score}<small>/100</small></span></li>`;
-      }
-      const chapter = academy.study.chapters.find((c) => c.id === a.chapter);
-      const title = chapter ? esc(chapter.title) : 'capitolo';
-      const done = a.type === 'chapter_completed';
-      return `<li><span class="badge-icon">${icon.study}</span><span class="grow"><strong>Studio · ${title}</strong><span class="meta">${when}${done ? '' : ' · iniziato'}</span></span><span class="value ok">${done ? icon.check : ''}</span></li>`;
-    }).join('');
-  return rows ? `<h3 class="section-label">Ultime attività</h3><ul class="card list">${rows}</ul>` : '';
+function studyCta(app, layoutId) {
+  const academy = app.academies[layoutId];
+  const action = nextStudyAction(app.progress(layoutId), academy);
+  const total = academy.study.chapters.length;
+  const href = action.chapter ? `#/pista/${layoutId}/studio/${action.chapter.id}` : `#/pista/${layoutId}/studio`;
+  const label = {
+    start: 'Inizia lo studio',
+    continue: 'Continua lo studio',
+    next: 'Continua lo studio',
+    review: 'Rivedi lo studio',
+    none: 'Apri lo studio',
+  }[action.kind];
+  const where = action.chapter ? `Capitolo ${action.index} di ${total}` : 'Studio';
+  return { action, href, label, where, total };
 }
 
 // ---------- Home ----------
 
 export function renderHome(root, app) {
   const s = app.season;
+  const layoutId = Object.keys(app.academies)[0]; // the demo Academy (Oulton)
+  const academy = app.academies[layoutId];
   const state = app.state();
-  const pos = seasonPosition(s, app.now());
-  const heroIndex = pos.current ?? (pos.phase === 'before' ? 0 : s.weeks.length - 1);
   const returning = hasAnyProgress(state);
-  let html = `<header class="brand"><span class="mark"></span>Track Academy</header>`;
+  const cta = studyCta(app, layoutId);
+  const { action } = cta;
+  const shadow = shadowSummary(app.progress(layoutId));
 
-  if (!returning) {
-    html += `<h1 class="display xl">Conosci la pista prima di guidarla</h1>
-      <p class="sub">Studia il tracciato, poi mettiti alla prova con quiz e Shadow Lap.</p>
-      ${weekHero(app, heroIndex, { cta: 'Prepara questa pista' })}
-      ${availableCards(app, heroIndex, { firstVisit: true })}
-      <h3 class="section-label">Come funziona</h3>
-      <ol class="steps">
-        <li><b>1</b><span>Studio<small>Capitoli brevi sulla pista</small></span></li>
-        <li><b>2</b><span>Quiz teorico<small>In arrivo</small></span></li>
-        <li><b>3</b><span>Shadow Lap<small>Il giro a memoria, col telefono come volante</small></span></li>
-      </ol>
-      <p class="hint">Ordine consigliato, non obbligatorio.</p>
-      ${seriesCard(app)}
-      <p class="foot">I progressi restano salvati solo su questo dispositivo.</p>`;
-  } else {
-    const cont = continueTarget(state, app.byKey);
-    if (cont) {
-      const layoutId = cont.academy.id;
-      const chapters = cont.academy.study.chapters;
-      const n = chapters.findIndex((c) => c.id === cont.chapter.id) + 1;
-      html += `<h3 class="section-label">Continua</h3>
-        <div class="card hero accent-border">
-          <div class="eyebrow">${esc(cont.academy.circuit.name)} · Studio · capitolo ${n}/${chapters.length}</div>
-          <h2 class="display">${esc(cont.chapter.title)}</h2>
-          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(cont.position * 100)}"><span style="width:${Math.max(4, cont.position * 100)}%"></span></div>
-          <a class="btn primary" href="#/pista/${layoutId}/studio/${cont.chapter.id}">Continua la lezione</a>
-        </div>`;
-    }
-    html += weekHero(app, heroIndex, { cta: 'Apri la pista' });
-    html += availableCards(app, heroIndex, { firstVisit: false });
-    html += activityRows(app, state);
-    const st = homeStats(state);
-    html += `<h3 class="section-label">Su questo dispositivo</h3>
-      <div class="stats">
-        <div><strong>${st.tracksStarted}<small>/${s.weeks.length}</small></strong><span>Piste iniziate</span></div>
-        <div><strong>${st.chaptersDone}</strong><span>Capitoli completati</span></div>
-        <div><strong>${st.laps}</strong><span>Giri Shadow Lap</span></div>
+  const heroText = action.chapter
+    ? `<span class="hero-meta">${cta.where}${action.chapter.minutes ? ` · ${action.chapter.minutes} min` : ''}</span>
+       <strong class="hero-chapter">${esc(action.chapter.title)}</strong>`
+    : `<span class="hero-meta">Capitoli disponibili completati</span>`;
+
+  root.innerHTML = `<div class="fit">
+    <header class="page-head">
+      <div class="brand"><span class="mark"></span>Track Academy</div>
+      ${gearLink}
+    </header>
+    <div class="intro">
+      <div class="eyebrow">${esc(s.series)} · ${esc(s.car)}</div>
+      <h1 class="display">${returning ? 'Bentornato' : 'Impara la pista prima di guidarla'}</h1>
+      ${returning ? '<p class="sub">Riprendi da dove avevi lasciato.</p>' : ''}
+    </div>
+    <div class="hero-card grow-card">
+      <div class="hero-top">
+        <span class="tag-chip">${returning && action.kind !== 'start' ? 'In corso' : 'Academy demo'}</span>
+        <span class="hero-car">${esc(academy.car)}</span>
       </div>
-      ${seriesCard(app)}`;
-  }
-  root.innerHTML = html;
+      <a class="hero-map" href="#/pista/${layoutId}" data-map="${layoutId}" data-variant="hero" aria-label="Apri ${esc(academy.circuit.name)}"></a>
+      <div class="hero-title">
+        <h2>${esc(academy.circuit.name)}</h2>
+        <span class="hero-layout">${esc(academy.layout.name)}</span>
+      </div>
+      ${returning ? `<div class="hero-progress">${heroText}${chapterSegments(app, layoutId)}</div>` : ''}
+      <a class="btn primary" href="${cta.href}">${cta.label}</a>
+    </div>
+    <div class="quick-row">
+      <a class="quick" href="#/pista/${layoutId}/studio">${icon.study}<span><b>Studio</b><small>${action.sum.done}/${cta.total} capitoli</small></span></a>
+      <a class="quick" href="#/shadow-lap">${icon.wheel}<span><b>Shadow Lap</b><small>${shadow ? `Ultimo ${shadow.last.score}/100` : 'Giro a memoria'}</small></span></a>
+    </div>
+  </div>`;
   mountMaps(root, app);
 }
 
-// ---------- Campionato ----------
+// ---------- Piste ----------
 
-export function renderChampionship(root, app) {
+export function renderPiste(root, app) {
   const s = app.season;
-  const started = s.weeks.filter((w) => statusOf(app, w) && statusOf(app, w) !== 'not_started').length;
-  const rows = s.weeks.map((w, i) => {
-    const tag = weekTag(app, i);
-    const status = statusOf(app, w);
-    const right = status
-      ? `<span class="status-mark" title="${STATUS[status].label}" aria-label="${STATUS[status].label}">${STATUS[status].mark}</span>`
-      : '<span class="chip">In preparazione</span>';
-    return `<li><a class="week-row${tag === 'Questa settimana' ? ' current' : tag ? ' next' : ''}${w.academy ? '' : ' muted-row'}" href="#/pista/${w.layoutId}">
-      <span class="week-num"><small>Sett</small>${String(w.week).padStart(2, '0')}</span>
-      <span class="grow">${tag ? `<span class="eyebrow tag">${tag}</span>` : ''}
-        <strong>${esc(w.track)}</strong>
-        <span class="meta">${esc(w.layout)} · ${weekRangeLabel(s, i)}</span></span>
-      ${right}</a></li>`;
+  const pos = seasonPosition(s, app.now());
+  const available = s.weeks.map((w, i) => ({ w, i })).filter(({ w }) => w.academy);
+  const others = s.weeks.map((w, i) => ({ w, i })).filter(({ w }) => !w.academy);
+
+  const availableCards = available.map(({ w }) => {
+    const academy = app.academies[w.layoutId];
+    const progress = app.progress(w.layoutId);
+    const done = academy.study.chapters.filter((c) => chapterState(progress, c) === 'done').length;
+    return `<a class="track-card" href="#/pista/${w.layoutId}">
+      <span class="thumb hero-thumb" data-map="${w.layoutId}" data-variant="hero"></span>
+      <span class="grow">
+        <span class="eyebrow live"><span class="dot"></span>Academy demo</span>
+        <strong class="card-title">${esc(academy.circuit.name)}</strong>
+        <span class="meta">${esc(academy.layout.name)} · ${done}/${academy.study.chapters.length} capitoli</span>
+        ${chapterSegments(app, w.layoutId)}
+      </span>
+      <span class="chev">${icon.chevron}</span></a>`;
   }).join('');
 
+  const otherRows = others.map(({ w, i }) => `<li class="week-row" aria-disabled="true">
+      <span class="week-num"><small>Sett</small>${String(w.week).padStart(2, '0')}</span>
+      <span class="grow"><strong>${esc(w.track)}</strong>
+        <span class="meta">${esc(w.layout)} · ${weekRangeLabel(s, i)}${pos.current === i ? ' · questa settimana' : ''}</span></span>
+      <span class="soon">Non ancora disponibile</span></li>`).join('');
+
   root.innerHTML = `
-    <header class="topbar"><a class="icon-btn" href="#/" aria-label="Home">${icon.back}</a><span class="eyebrow">Home</span></header>
-    <div class="eyebrow">Campionato · ${esc(s.season)}</div>
-    <h1 class="display xl">${esc(s.series)}</h1>
-    <div class="meta mono">${esc(s.car)} · ${s.weeks.length} settimane</div>
-    <p class="sub">${esc(s.description)}</p>
-    ${s.calendar.status === 'preliminary' ? `<p class="notice">${esc(s.calendar.note)} Fonte: <a href="${esc(s.calendar.source.url)}" target="_blank" rel="noopener">${esc(s.calendar.source.title)}</a>.</p>` : ''}
-    <div class="row-between"><h3 class="section-label">Calendario · ${started}/${s.weeks.length} iniziate</h3></div>
-    <ol class="weeks">${rows}</ol>
-    <p class="legend">– non iniziata · ◐ in corso · ✓ superata. Puoi aprire qualsiasi settimana.</p>`;
+    <header class="page-head">
+      <h1 class="display">Piste</h1>
+      ${gearLink}
+    </header>
+    <div class="series-card">
+      <span class="badge-icon">${icon.flag}</span>
+      <span class="grow"><span class="eyebrow">${esc(s.season)}</span>
+        <strong class="card-title">${esc(s.series)}</strong>
+        <span class="meta">${esc(s.car)} · ${s.weeks.length} piste in calendario</span></span>
+    </div>
+    ${availableCards}
+    <h3 class="section-label">Altre piste del calendario</h3>
+    <ol class="weeks">${otherRows}</ol>
+    <p class="legend">${esc(s.calendar.note)} Le Academy di queste piste non sono ancora pronte.</p>`;
+  mountMaps(root, app);
 }
 
 // ---------- Pagina pista ----------
-
-function trackHeader(app, layoutId, w, index) {
-  const tag = weekTag(app, index);
-  return `<header class="topbar"><a class="icon-btn" href="#/campionato" aria-label="Campionato">${icon.back}</a>
-      <span class="eyebrow">Campionato</span>
-      <span class="chip${tag === 'Questa settimana' ? ' live' : ''}">Sett. ${w.week} · ${tag ? tag.toLowerCase() : weekRangeLabel(app.season, index)}</span></header>`;
-}
 
 export function renderTrack(root, app, layoutId) {
   const s = app.season;
@@ -201,61 +149,45 @@ export function renderTrack(root, app, layoutId) {
   const academy = app.academies[layoutId];
 
   if (!academy) {
-    root.innerHTML = `${trackHeader(app, layoutId, w, index)}
-      <div class="eyebrow">${esc(s.car)} · F1600 Rookie</div>
-      <h1 class="display xl">${esc(w.track)}</h1>
-      <span class="layout-chip"><small>Layout</small>${esc(w.layout)}</span>
-      <div class="card">
-        <p><strong>Academy in preparazione.</strong> Studio, quiz e Shadow Lap di questa pista non sono ancora disponibili.</p>
-        <p class="meta">Settimana ${w.week} · ${weekRangeLabel(s, index)}${w.layoutConfirmed ? '' : ' · il layout esatto va ancora confermato in iRacing'}.</p>
-      </div>
-      <a class="btn" href="#/campionato">Torna al campionato</a>`;
+    root.innerHTML = `
+      <header class="page-head"><a class="back-chip" href="#/piste">${icon.back}<span>Piste</span></a></header>
+      <h1 class="display">${esc(w.track)}</h1>
+      <p class="sub">${esc(w.layout)} · settimana ${w.week} · ${weekRangeLabel(s, index)}</p>
+      <div class="card"><p><strong>Non ancora disponibile.</strong> L'Academy di questa pista è in preparazione.</p></div>
+      <a class="btn" href="#/piste">Torna alle piste</a>`;
     return null;
   }
 
-  const progress = app.progress(layoutId);
-  const study = studySummary(progress, academy);
-  const shadow = shadowSummary(progress);
-  const total = academy.study.chapters.length;
-  const nextIndex = study.next ? academy.study.chapters.indexOf(study.next) + 1 : null;
-  let cta;
-  if (!study.next && !study.started) cta = { label: 'Apri lo studio', href: `#/pista/${layoutId}/studio`, sub: 'Capitoli in preparazione' };
-  else if (!study.started) cta ={ label: 'Comincia lo studio', href: `#/pista/${layoutId}/studio/${study.next.id}`, sub: `Capitolo ${nextIndex} · ${study.next.title}` };
-  else if (study.next) cta = { label: 'Continua lo studio', href: `#/pista/${layoutId}/studio/${study.next.id}`, sub: `Capitolo ${nextIndex} · ${study.next.title}` };
-  else cta = { label: 'Rivedi lo studio', href: `#/pista/${layoutId}/studio`, sub: 'Hai completato i capitoli disponibili' };
+  const cta = studyCta(app, layoutId);
+  const { action } = cta;
+  const ready = action.sum.ready;
+  const total = cta.total;
 
-  const studyLine = study.started
-    ? `${study.done}/${study.ready} capitoli completati${study.next ? ` · prossimo: ${esc(study.next.title)}` : ''}`
-    : `${study.ready} capitoli disponibili · non iniziato`;
-  let shadowLine = 'Non ancora provato';
-  if (shadow) {
-    const best = Object.entries(shadow.bestByMode).map(([m, v]) => `${MODE_LABEL[m] ?? m} ${v}`).join(' · ');
-    shadowLine = `Ultimo ${shadow.last.score}/100 (${MODE_LABEL[shadow.last.mode] ?? shadow.last.mode}) · migliori: ${best}`;
-  }
-
-  root.innerHTML = `${trackHeader(app, layoutId, w, index)}
-    <div class="eyebrow">${esc(academy.car)} · F1600 Rookie</div>
-    <h1 class="display xl">${esc(academy.circuit.name)}</h1>
-    <span class="layout-chip"><small>Layout</small>${esc(academy.layout.name)}</span>
-    <div class="map-box large" data-map="${layoutId}"></div>
-    <div class="meta mono map-caption">${academy.layout.turns} curve · senso ${esc(academy.layout.direction)} · ${esc(academy.layout.lengthText)} · geometria © OpenStreetMap</div>
-    ${academy.status === 'pilot' ? `<p class="notice"><b>Academy pilota, in costruzione.</b> ${study.ready} capitoli dello Studio su ${total} sono pronti, il Quiz è in arrivo e il riferimento dello Shadow Lap è stimato.</p>` : ''}
-    <h3 class="section-label">Il tuo stato · su questo dispositivo</h3>
-    <ul class="card list activities">
-      <li><a class="row-link" href="#/pista/${layoutId}/studio"><span class="badge-icon">${icon.study}</span>
-        <span class="grow"><strong>Studio</strong><span class="meta">${studyLine}</span></span>
-        <span class="value">${study.done}/${study.ready}</span></a></li>
-      <li class="disabled"><span class="badge-icon">${icon.quiz}</span>
-        <span class="grow"><strong>Quiz teorico</strong><span class="meta">In arrivo nella prossima versione</span></span>
-        <span class="chip">In arrivo</span></li>
-      <li><span class="badge-icon">${icon.wheel}</span>
-        <span class="grow"><strong>Shadow Lap · prototipo</strong><span class="meta">Allenamento libero con le modalità dello spike. ${shadowLine}</span></span>
-        <a class="btn small" href="#/pista/${layoutId}/shadow-lap">Avvia</a></li>
-    </ul>
-    <p class="hint">Consigliato: Studio → Quiz → Shadow Lap. Puoi iniziare da qualsiasi attività.</p>
-    <a class="btn primary" href="${cta.href}">${cta.label}</a>
-    <p class="cta-sub">${esc(cta.sub)}</p>
-    <p class="foot">Non affiliato a iRacing. ${esc(academy.shadowLap.note)}</p>`;
+  root.innerHTML = `<div class="fit">
+    <header class="page-head">
+      <a class="back-chip" href="#/piste">${icon.back}<span>Piste</span></a>
+      <span class="mono-chip">${esc(academy.car)}</span>
+    </header>
+    <div class="intro">
+      <h1 class="display">${esc(academy.circuit.name)}</h1>
+      <p class="sub">${esc(academy.layout.name)} · ${academy.layout.turns} curve · ${esc(academy.layout.lengthText)}</p>
+      <div class="progress-line">${chapterSegments(app, layoutId)}<span class="mono small">${action.sum.done}/${total}</span></div>
+    </div>
+    <div class="map-card grow-card" data-map="${layoutId}"></div>
+    <div class="next-card">
+      ${action.chapter
+        ? `<span class="eyebrow">${cta.where}${action.chapter.minutes ? ` · ${action.chapter.minutes} min` : ''}${action.kind === 'continue' ? ' · in corso' : ''}</span>
+           <strong class="next-title">${esc(action.chapter.title)}</strong>`
+        : `<span class="eyebrow">Studio</span><strong class="next-title">Hai completato i capitoli disponibili</strong>`}
+      <a class="btn primary" href="${cta.href}">${cta.label}</a>
+      <div class="link-row">
+        <a href="#/pista/${layoutId}/studio">Tutti i capitoli ›</a>
+        <a href="#/pista/${layoutId}/curve">Le ${academy.layout.turns} curve ›</a>
+        <a href="#/shadow-lap">Shadow Lap ›</a>
+      </div>
+    </div>
+    <p class="foot-note">Academy demo: ${ready} capitoli su ${total} pronti, esame non ancora disponibile. Mappa © OpenStreetMap. Non affiliato a iRacing.</p>
+  </div>`;
   mountMaps(root, app);
   return null;
 }
@@ -264,25 +196,22 @@ export function renderTrack(root, app, layoutId) {
 
 export function renderSettings(root, app) {
   const theme = getTheme();
+  const st = homeStats(app.state());
   const opt = (value, label) => `<label class="seg"><input type="radio" name="theme" value="${value}"${theme === value ? ' checked' : ''}><span>${label}</span></label>`;
+  const back = app.backHash && app.backHash !== '#/impostazioni' ? app.backHash : '#/';
   root.innerHTML = `
-    <header class="brand"><span class="mark"></span>Track Academy</header>
-    <h1 class="display xl">Impostazioni</h1>
-    <h3 class="section-label">Aspetto</h3>
+    <header class="page-head"><a class="back-chip" href="${esc(back)}">${icon.back}<span>Indietro</span></a></header>
+    <h1 class="display">Impostazioni</h1>
+    <h3 class="section-label">Tema</h3>
     <div class="segmented" role="radiogroup" aria-label="Tema">${opt('auto', 'Automatico')}${opt('light', 'Chiaro')}${opt('dark', 'Scuro')}</div>
-    <p class="hint">Automatico segue il tema del telefono.</p>
-    <h3 class="section-label">I tuoi dati</h3>
+    <h3 class="section-label">Progressi</h3>
     <div class="card">
-      <p>I progressi restano <b>solo in questo browser, su questo dispositivo</b>. Non ci sono account né sincronizzazione: se cancelli i dati del sito o cambi telefono, li perdi.</p>
+      <p><b>Salvati solo su questo dispositivo</b>, senza account: se cancelli i dati del sito o cambi telefono, li perdi.</p>
+      <p class="meta">${st.chaptersDone} capitoli completati · ${st.laps} giri Shadow Lap</p>
       ${store.storageWritable() ? '' : '<p class="error">Questo browser non permette di salvare i dati (forse sei in navigazione privata): i progressi andranno persi alla chiusura.</p>'}
       <div id="reset-area"><button class="btn danger" id="btn-reset">Cancella i progressi</button></div>
     </div>
-    <h3 class="section-label">Informazioni</h3>
-    <div class="card small-print">
-      <p>Track Academy · versione di prova privata.</p>
-      <p>Non affiliato a iRacing. I nomi di piste, serie e auto servono solo a identificarle.</p>
-      <p>Mappe dalla geometria © OpenStreetMap contributors, licenza ODbL. Caratteri Archivo e JetBrains Mono, licenza SIL OFL.</p>
-    </div>`;
+    <p class="foot-note">Track Academy · prototipo privato. Non affiliato a iRacing. Mappe © OpenStreetMap contributors (ODbL). Caratteri Archivo e JetBrains Mono (SIL OFL).</p>`;
 
   for (const input of root.querySelectorAll('input[name="theme"]')) {
     input.addEventListener('change', () => setTheme(input.value));
@@ -303,3 +232,4 @@ export function renderSettings(root, app) {
   area.querySelector('#btn-reset').addEventListener('click', askReset);
   return null;
 }
+

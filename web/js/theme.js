@@ -9,7 +9,7 @@ function apply() {
   const resolved = preference === 'auto' ? (media.matches ? 'light' : 'dark') : preference;
   document.documentElement.dataset.theme = resolved;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = resolved === 'light' ? '#F1ECE3' : '#0D0F11';
+  if (meta) meta.content = resolved === 'light' ? '#FFFFFF' : '#0E1013';
 }
 
 export function getTheme() {

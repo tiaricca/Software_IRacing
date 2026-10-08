@@ -28,6 +28,23 @@ export function studySummary(academyProgress, academy) {
   };
 }
 
+// The single primary Study action shown on Home and on the track page.
+//   start    nothing studied yet                -> first ready chapter
+//   continue a chapter left half-read           -> that chapter, same position
+//   next     some chapters done, others to read -> next ready chapter
+//   review   every ready chapter completed      -> chapter index
+export function nextStudyAction(academyProgress, academy) {
+  const sum = studySummary(academyProgress, academy);
+  const chapters = academy.study.chapters;
+  if (!sum.next) return { kind: sum.ready ? 'review' : 'none', chapter: null, index: null, position: 0, sum };
+  const index = chapters.indexOf(sum.next) + 1;
+  if (sum.nextState === 'reading') {
+    const position = academyProgress.study.chapters[sum.next.id].position;
+    return { kind: 'continue', chapter: sum.next, index, position, sum };
+  }
+  return { kind: sum.started ? 'next' : 'start', chapter: sum.next, index, position: 0, sum };
+}
+
 export function shadowSummary(academyProgress) {
   const attempts = academyProgress?.shadow.attempts ?? [];
   if (!attempts.length) return null;

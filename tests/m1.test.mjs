@@ -169,3 +169,30 @@ test('notes are stored per academy', () => {
   const s = store.setNote(store.emptyState(), KEY, 'T16', 'corda tardi');
   assert.equal(s.academies[KEY].notes.T16, 'corda tardi');
 });
+
+// ---------- M1-C: single next Study action ----------
+
+test('next Study action: start, continue, next, review', async () => {
+  const { nextStudyAction } = await import('../web/js/progress.js');
+  let s = store.emptyState();
+  let a = nextStudyAction(s.academies[KEY], oulton);
+  assert.equal(a.kind, 'start');
+  assert.equal(a.chapter.id, 'intro');
+
+  s = store.touchChapter(s, KEY, 'intro', 0.3, '2026-10-08T10:00:00.000Z');
+  a = nextStudyAction(s.academies[KEY], oulton);
+  assert.equal(a.kind, 'continue');
+  assert.equal(a.position, 0.3);
+  assert.equal(a.index, 1);
+
+  s = store.completeChapter(s, KEY, 'intro', '2026-10-08T10:05:00.000Z');
+  a = nextStudyAction(s.academies[KEY], oulton);
+  assert.equal(a.kind, 'next');
+  assert.equal(a.chapter.id, 'clay-hill-deer-leap');
+  assert.equal(a.index, 6);
+
+  s = store.completeChapter(s, KEY, 'clay-hill-deer-leap', '2026-10-08T10:10:00.000Z');
+  a = nextStudyAction(s.academies[KEY], oulton);
+  assert.equal(a.kind, 'review');
+  assert.equal(a.chapter, null);
+});

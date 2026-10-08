@@ -16,7 +16,8 @@
   "car": "Ray FF1600",
   "shadowLap": {
     "reference": "data/oulton-international.json",
-    "note": "Riferimento stimato dalla geometria con un modello semplificato: non è un giro reale."
+    "note": "Riferimento stimato dalla geometria con un modello semplificato: non è un giro reale.",
+    "shortNote": "Riferimento stimato, non un giro reale."
   },
   "sources": {
     "wikipedia": {

@@ -1,13 +1,17 @@
 // Track Academy app shell: data loading, hash router, tab bar.
 //
+// Tabs: Home · Piste · Shadow Lap. Impostazioni is a secondary page opened
+// from the gear icon and returns to where it was opened from.
+//
 // Routes:
 //   #/                               Home
-//   #/campionato                     12 settimane della serie
-//   #/pista/<layoutId>               pagina pista (Academy o "in preparazione")
+//   #/piste                          serie e piste (#/campionato è un alias)
+//   #/pista/<layoutId>               pagina pista (Academy o "non ancora disponibile")
 //   #/pista/<layoutId>/studio        capitoli dello Studio
 //   #/pista/<layoutId>/studio/<id>   lettura di un capitolo
 //   #/pista/<layoutId>/curve         elenco curve e note personali
-//   #/pista/<layoutId>/shadow-lap    Shadow Lap (allenamento libero)
+//   #/shadow-lap                     tab Shadow Lap (allenamento libero)
+//   #/pista/<layoutId>/shadow-lap    alias: tab Shadow Lap su quella pista
 //   #/impostazioni
 //
 // "?oggi=AAAA-MM-GG" in the URL overrides today's date, to check the
@@ -16,7 +20,7 @@
 import * as store from './store.js';
 import { initTheme } from './theme.js';
 import { initShadowLap, openShadowSetup, abortShadowLap } from './shadowlap.js';
-import { renderHome, renderChampionship, renderTrack, renderSettings } from './views.js';
+import { renderHome, renderPiste, renderTrack, renderSettings } from './views.js';
 import { renderStudyIndex, renderChapter, renderCorners } from './study.js';
 
 const SEASON_URL = 'data/seasons/f1600-rookie-2026s4.json';
@@ -55,8 +59,9 @@ const app = {
 
 function show(name) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== `screen-${name}`;
-  tabbar.hidden = name !== 'view' || !app.tabVisible;
+  tabbar.hidden = !((name === 'view' && app.tabVisible) || name === 'setup');
   document.body.classList.toggle('with-tabbar', !tabbar.hidden);
+  if (name === 'setup') setTab('shadow');
 }
 app.show = show;
 
@@ -68,35 +73,48 @@ function setTab(tab) {
   }
 }
 
+function openShadowTab() {
+  const layoutId = app.academies[app.shadowLayout] ? app.shadowLayout : Object.keys(app.academies)[0];
+  const academy = app.academies[layoutId];
+  openShadowSetup({
+    layoutId,
+    ref: app.refs[layoutId],
+    key: app.key(layoutId),
+    title: `${academy.circuit.name} · ${academy.layout.name} · ${academy.car}`,
+    refNote: academy.shadowLap.shortNote ?? academy.shadowLap.note,
+  });
+  window.scrollTo(0, 0);
+}
+
 function route() {
   cleanup?.();
   cleanup = null;
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   const [section, layoutId, sub, item] = parts;
 
-  if (!(section === 'pista' && sub === 'shadow-lap')) abortShadowLap();
+  if (section !== 'shadow-lap') abortShadowLap();
+  if (section !== 'impostazioni') app.backHash = location.hash || '#/';
+
+  // Old links keep working.
+  if (section === 'campionato' && !layoutId) { location.replace('#/piste'); return; }
+  if (section === 'pista' && sub === 'shadow-lap' && app.academies[layoutId]) {
+    app.shadowLayout = layoutId;
+    location.replace('#/shadow-lap');
+    return;
+  }
+  if (section === 'shadow-lap' && !layoutId) { openShadowTab(); return; }
 
   let render = null;
   let tab = null;
   if (!section) { render = () => renderHome(view, app); tab = 'home'; }
-  else if (section === 'campionato' && !layoutId) { render = () => renderChampionship(view, app); tab = 'piste'; }
-  else if (section === 'impostazioni' && !layoutId) { render = () => renderSettings(view, app); tab = 'settings'; }
+  else if (section === 'piste' && !layoutId) { render = () => renderPiste(view, app); tab = 'piste'; }
+  else if (section === 'impostazioni' && !layoutId) { render = () => renderSettings(view, app); }
   else if (section === 'pista' && app.season.weeks.some((w) => w.layoutId === layoutId)) {
     const academy = app.academies[layoutId];
     if (!sub) { render = () => renderTrack(view, app, layoutId); tab = 'piste'; }
     else if (academy && sub === 'studio' && !item) { render = () => renderStudyIndex(view, app, layoutId); tab = 'piste'; }
     else if (academy && sub === 'studio' && item) { render = () => renderChapter(view, app, layoutId, item); }
     else if (academy && sub === 'curve') { render = () => renderCorners(view, app, layoutId); tab = 'piste'; }
-    else if (academy && sub === 'shadow-lap') {
-      openShadowSetup({
-        layoutId,
-        ref: app.refs[layoutId],
-        key: app.key(layoutId),
-        title: `${academy.circuit.name} · ${academy.layout.name} · ${academy.car}`,
-        refNote: academy.shadowLap.note,
-      });
-      return;
-    }
   }
 
   if (!render) { location.replace('#/'); return; }
@@ -127,7 +145,7 @@ async function boot() {
 
   initShadowLap({
     show,
-    onExit: (ctx) => app.go(`#/pista/${ctx.layoutId}`),
+    onExit: () => app.go('#/shadow-lap'),
     onAttempt: (ctx, attempt) => app.update((s) => store.addShadowAttempt(s, ctx.key, attempt)),
     getRotationFlip: () => app.state().prefs.rotationFlip,
     setRotationFlip: (v) => app.update((s) => ({ ...s, prefs: { ...s.prefs, rotationFlip: v } })),

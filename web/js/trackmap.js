@@ -4,6 +4,7 @@
 //   labels: true | false        show corner markers with their number
 //   focus:  ['T13', 'T17']      highlight the stretch between two corners,
 //                               zoom on it and only label its corners
+//   variant: 'hero'             dashed centre line for the dark asphalt cards
 //   onCornerClick(id)
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -31,7 +32,7 @@ export function focusRange(ref, focus) {
   };
 }
 
-export function renderTrackMap(container, ref, { labels = true, focus = null, onCornerClick } = {}) {
+export function renderTrackMap(container, ref, { labels = true, focus = null, variant = null, onCornerClick } = {}) {
   const pts = ref.path;
   const range = focus ? focusRange(ref, focus) : null;
   const box = range ? pts.slice(range.from, range.to + 1) : pts;
@@ -51,6 +52,10 @@ export function renderTrackMap(container, ref, { labels = true, focus = null, on
   const d = pathD(pts, true);
   svg.append(el('path', { d, class: 'track-outline', 'stroke-width': 26 * k }));
   svg.append(el('path', { d, class: 'track-surface', 'stroke-width': 14 * k }));
+  if (variant === 'hero') {
+    // Dark asphalt card: dashed white centre line, like a kerb painted on the track.
+    svg.append(el('path', { d, class: 'track-kerb', 'stroke-width': 3 * k, 'stroke-dasharray': `${12 * k} ${10 * k}` }));
+  }
   if (range) {
     svg.append(el('path', { d: pathD(pts.slice(range.from, range.to + 1), false), class: 'track-highlight', 'stroke-width': 14 * k }));
   }
